@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: tx24-api
+    env: node
+    rootDir: apps/api
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
+  - type: worker
+    name: tx24-worker
+    env: node
+    rootDir: apps/worker
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
+

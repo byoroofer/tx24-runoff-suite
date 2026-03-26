@@ -1,0 +1,322 @@
+openapi: 3.1.0
+info:
+  title: TX-24 Runoff Backend Suite API
+  version: 0.1.0
+servers:
+  - url: http://localhost:4000
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+  /auth/me:
+    get:
+      summary: Current authenticated user
+      responses:
+        "200":
+          description: Current user context
+  /sites:
+    get:
+      summary: List configured feeder sites
+      responses:
+        "200":
+          description: Feeder site summaries and snapshot
+  /sites/landing-pages:
+    get:
+      summary: List landing-page factory rows
+      responses:
+        "200":
+          description: Landing inventory
+  /sites/performance:
+    get:
+      summary: List feeder-site performance leaderboard
+      responses:
+        "200":
+          description: Feeder-site performance summary
+  /sites/factory-preview:
+    post:
+      summary: Generate a feeder-site proposal preview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [audience, theme, funnelGoal, priority]
+              properties:
+                audience:
+                  type: string
+                theme:
+                  type: string
+                  enum: [economic, service, family, turnout]
+                funnelGoal:
+                  type: string
+                priority:
+                  type: string
+                  enum: [high, medium, low]
+      responses:
+        "200":
+          description: Site proposal preview
+  /seo/campaign-map:
+    get:
+      summary: List SEO entities and placement targets
+      responses:
+        "200":
+          description: SEO campaign map
+  /seo/brief-preview:
+    post:
+      summary: Generate a human-operated placement brief
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [city, issue, entity, targetLabel]
+              properties:
+                city:
+                  type: string
+                issue:
+                  type: string
+                entity:
+                  type: string
+                targetLabel:
+                  type: string
+      responses:
+        "200":
+          description: Placement brief preview
+  /sites/{tenantSlug}:
+    get:
+      summary: Get one feeder site
+      parameters:
+        - in: path
+          name: tenantSlug
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: One feeder site
+        "404":
+          description: Site not found
+  /messaging/inbox:
+    get:
+      summary: List inbox messages
+      responses:
+        "200":
+          description: Inbox items
+  /messaging/send-single:
+    post:
+      summary: Enqueue a single outbound message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SingleSendRequest"
+      responses:
+        "202":
+          description: Message queued
+        "422":
+          description: Consent or suppression blocked the send
+  /messaging/send-batch:
+    post:
+      summary: Enqueue a batch of outbound messages
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/SingleSendRequest"
+      responses:
+        "202":
+          description: Batch processed
+  /content/publish:
+    post:
+      summary: Run publishing governance and publish if safe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublishRequest"
+      responses:
+        "200":
+          description: Publish approved
+        "422":
+          description: Publishing governance blocked the content
+  /webhooks/twilio/inbound:
+    post:
+      summary: Twilio inbound message webhook
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Processed
+        "403":
+          description: Signature invalid
+  /webhooks/twilio/status:
+    post:
+      summary: Twilio status callback webhook
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Processed
+        "403":
+          description: Signature invalid
+  /dashboard/feeder-sites:
+    get:
+      summary: Current feeder-site dashboard payload
+      responses:
+        "200":
+          description: Snapshot, clicks, and conversions
+  /r/{slug}:
+    get:
+      summary: Feeder-site tracking redirect
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirects to main ElectTJ site destination
+        "404":
+          description: Tracking slug not found
+  /conversions:
+    post:
+      summary: Record a feeder-site conversion event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantSlug, eventName]
+              properties:
+                tenantSlug:
+                  type: string
+                eventName:
+                  type: string
+                value:
+                  type: number
+      responses:
+        "201":
+          description: Conversion recorded
+        "422":
+          description: Required fields missing
+components:
+  schemas:
+    ConsentProof:
+      type: object
+      required: [textShown, timestamp, sourceUrl, sourceDomain, userAgent]
+      properties:
+        textShown:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        sourceUrl:
+          type: string
+          format: uri
+        sourceDomain:
+          type: string
+        userAgent:
+          type: string
+    ConsentEntry:
+      type: object
+      required: [tenantId, contactId, channel, status, proof]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        contactId:
+          type: string
+          format: uuid
+        channel:
+          type: string
+          enum: [sms, email]
+        status:
+          type: string
+          enum: [granted, revoked]
+        proof:
+          $ref: "#/components/schemas/ConsentProof"
+    Message:
+      type: object
+      required: [tenantId, contactId, to, senderId, body, channel]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        contactId:
+          type: string
+          format: uuid
+        to:
+          type: string
+        senderId:
+          type: string
+        body:
+          type: string
+        channel:
+          type: string
+          enum: [sms, email]
+        p2pMode:
+          type: boolean
+    SingleSendRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          $ref: "#/components/schemas/Message"
+        consentEntry:
+          $ref: "#/components/schemas/ConsentEntry"
+    PublishAsset:
+      type: object
+      properties:
+        id:
+          type: string
+        isAltered:
+          type: boolean
+        isDeepFake:
+          type: boolean
+        alteredImageLabelApplied:
+          type: boolean
+        complianceApproved:
+          type: boolean
+    PublishRequest:
+      type: object
+      required: [draftId, body, provenanceSources]
+      properties:
+        draftId:
+          type: string
+        body:
+          type: string
+        provenanceSources:
+          type: array
+          items:
+            type: string
+            format: uri
+        candidateBodySamples:
+          type: array
+          items:
+            type: string
+        similarityThreshold:
+          type: number
+        assets:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublishAsset"
