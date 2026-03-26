@@ -8,4 +8,5 @@ coverage
 .env.*.local
 .vercel
 *.log
+*.tsbuildinfo
 .DS_Store
