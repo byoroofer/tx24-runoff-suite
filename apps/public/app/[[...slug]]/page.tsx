@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import {
+  buildFeederNarrative,
   buildTrackingSlug,
   FEEDER_SITES,
   getFeederSiteBySlug,
@@ -21,6 +22,10 @@ function buildPreviewHref(siteSlug: string, landingSlug?: string) {
   return `${path}?site=${siteSlug}`;
 }
 
+function formatCalendarLabel() {
+  return `Registration deadline ${TX24_RUNOFF_ELECTION_CALENDAR.voterRegistrationDeadline} • Early voting ${TX24_RUNOFF_ELECTION_CALENDAR.earlyVotingStarts} to ${TX24_RUNOFF_ELECTION_CALENDAR.earlyVotingEnds} • Election day ${TX24_RUNOFF_ELECTION_CALENDAR.electionDay}`;
+}
+
 export default async function Page({
   params,
   searchParams
@@ -34,12 +39,14 @@ export default async function Page({
   const previewSite = getFeederSiteBySlug(search.site);
   const site = previewSite ?? resolveFeederSite(host);
   const landing = resolveLandingSection(site, slug?.[0]);
+  const narrative = buildFeederNarrative(site, landing);
   const mainSiteUrl = getMainSiteUrl();
   const trackingBaseUrl = getTrackingBaseUrl();
   const trackingSlug = buildTrackingSlug(site, landing);
   const trackedUrl = `${trackingBaseUrl}/r/${trackingSlug}`;
   const directUrl = new URL(landing.targetPath, mainSiteUrl).toString();
   const previewMode = Boolean(previewSite);
+
   const relatedPreviewLinks = FEEDER_SITES.map((candidate) => {
     const preferredLanding = candidate.landingPages.find((page) => page.slug === landing.slug) ?? candidate.landingPages[0]!;
 
@@ -53,15 +60,16 @@ export default async function Page({
   });
 
   return (
-    <main className="page">
+    <main className="siteShell">
       {previewMode ? (
         <section className="previewPanel">
-          <div>
-            <p className="eyebrow">Preview mode</p>
-            <h2>Browsing feeder tenant: {site.name}</h2>
+          <div className="previewHeader">
+            <div>
+              <p className="eyebrow">Preview mode</p>
+              <h2>Browsing feeder tenant: {site.name}</h2>
+            </div>
             <p className="muted">
-              This local switcher lets you review all configured feeder tenants without live domain
-              mapping.
+              This switcher reviews configured feeder tenants before live domain mapping.
             </p>
           </div>
           <div className="previewGrid">
@@ -82,90 +90,157 @@ export default async function Page({
       ) : null}
 
       <section className={`hero theme-${site.theme}`}>
-        <p className="eyebrow">{landing.eyebrow}</p>
-        <h1>{landing.headline}</h1>
-        <p>{landing.supportingText}</p>
-        <p>{site.message}</p>
-        <p>
-          Registration deadline {TX24_RUNOFF_ELECTION_CALENDAR.voterRegistrationDeadline}. Early
-          voting {TX24_RUNOFF_ELECTION_CALENDAR.earlyVotingStarts} through{" "}
-          {TX24_RUNOFF_ELECTION_CALENDAR.earlyVotingEnds}. Election day{" "}
-          {TX24_RUNOFF_ELECTION_CALENDAR.electionDay}.
-        </p>
+        <div className="heroGrid">
+          <div className="heroCopy">
+            <p className="eyebrow light">{narrative.siteLabel}</p>
+            <p className="masthead">{narrative.publicationTitle}</p>
+            <h1>{landing.headline}</h1>
+            <p className="heroDeck">{narrative.deck}</p>
+            <p className="heroBody">{narrative.perspective}</p>
+            <div className="ctaRow">
+              <a href={trackedUrl} className="buttonPrimary">
+                {landing.ctaLabel}
+              </a>
+              <a href={directUrl} className="buttonSecondary">
+                Open main-site path
+              </a>
+            </div>
+          </div>
+          <aside className="heroAside">
+            <div className="infoPanel">
+              <p className="eyebrow light">Campaign window</p>
+              <p>{formatCalendarLabel()}</p>
+            </div>
+            <div className="infoPanel">
+              <p className="eyebrow light">District focus</p>
+              <p>{site.localCities.join(" • ")}</p>
+            </div>
+            <div className="infoPanel">
+              <p className="eyebrow light">Current route</p>
+              <p className="mono">{trackingSlug}</p>
+            </div>
+          </aside>
+        </div>
+        <div className="proofStrip">
+          {narrative.proofStrip.map((item) => (
+            <span key={item}>{item}</span>
+          ))}
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="sectionHeader">
+          <p className="eyebrow">Issue frame</p>
+          <h2>Why this page should exist</h2>
+          <p className="muted">
+            The feeder site should sound like a real local publication with a clear argument, not a
+            generic campaign template.
+          </p>
+        </div>
+        <div className="grid threeUp">
+          {narrative.issueFrame.map((item) => (
+            <article key={item.title} className="card">
+              <h3>{item.title}</h3>
+              <p className="muted">{item.body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="section splitSection">
+        <article className="featureCard">
+          <p className="eyebrow">Why TJ</p>
+          <h2>Make the TJ case clearly and professionally</h2>
+          <div className="stack">
+            {narrative.whyTj.map((item) => (
+              <div key={item.title} className="storyBlock">
+                <h3>{item.title}</h3>
+                <p className="muted">{item.body}</p>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <aside className="featureSidebar">
+          <div className="card">
+            <p className="eyebrow">Local and issue focus</p>
+            <h3>{site.priorityIssues.join(", ")}</h3>
+            <p className="muted">
+              This route is optimized around {site.localCities.join(", ")} and aimed at{" "}
+              {site.audience}.
+            </p>
+          </div>
+          <div className="card">
+            <p className="eyebrow">Contrast map</p>
+            <h3>{site.contrastFigures.join(", ")}</h3>
+            <p className="muted">
+              Use transparent, sourced, and disciplined contrast. No impersonation. No invented
+              claims.
+            </p>
+          </div>
+          <div className="card">
+            <p className="eyebrow">Editorial note</p>
+            <p className="muted">{narrative.editorialNote}</p>
+          </div>
+        </aside>
+      </section>
+
+      <section className="section">
+        <div className="sectionHeader">
+          <p className="eyebrow">Current landing path</p>
+          <h2>{landing.eyebrow}</h2>
+          <p className="muted">{landing.supportingText}</p>
+        </div>
+        <div className="grid threeUp">
+          {landing.proofPoints.map((point) => (
+            <article key={point} className="card emphasisCard">
+              <h3>{point}</h3>
+              <p className="muted">
+                This element should reinforce the conversion path instead of acting like filler.
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="section calloutBand">
+        <div>
+          <p className="eyebrow light">Action plan</p>
+          <h2>Turn intent into campaign movement</h2>
+        </div>
+        <ol className="actionList">
+          {narrative.actionPlan.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ol>
         <div className="ctaRow">
           <a href={trackedUrl} className="buttonPrimary">
             {landing.ctaLabel}
           </a>
-          <a href={directUrl} className="buttonSecondary">
-            Open direct main-site path
+          <a href={directUrl} className="buttonSecondary dark">
+            View the direct destination
           </a>
         </div>
       </section>
 
-      <section className="grid">
-        <article className="card">
-          <p className="eyebrow">Audience</p>
-          <h2>{site.audience}</h2>
-          <p className="muted">{site.headline}</p>
-        </article>
-        <article className="card">
-          <p className="eyebrow">Launch status</p>
-          <h2>{site.launchStatus}</h2>
-          <p className="muted">
-            Priority: {site.launchPriority}. Funnel goal: {site.funnelGoal}
-          </p>
-        </article>
-        <article className="card">
-          <p className="eyebrow">Tracking</p>
-          <h2 className="mono">{trackingSlug}</h2>
-          <p className="muted">This route records feeder traffic before redirecting to ElectTJ.</p>
-        </article>
-        <article className="card">
-          <p className="eyebrow">Local SEO focus</p>
-          <h2>{site.localCities.join(", ")}</h2>
-          <p className="muted">Cities and neighborhoods this feeder site is optimized around.</p>
-        </article>
-      </section>
-
-      <section className="grid">
-        <article className="card">
-          <p className="eyebrow">Why this page exists</p>
-          <ul className="list">
-            {landing.proofPoints.map((point) => (
-              <li key={point}>{point}</li>
-            ))}
-          </ul>
-        </article>
-        <article className="card">
-          <p className="eyebrow">Target path</p>
-          <h2>Main site destination</h2>
-          <p className="muted">{directUrl}</p>
-          <p className="muted">
-            Every feeder page should translate issue-specific intent into a more valuable campaign
-            action.
-          </p>
-        </article>
-        <article className="card">
-          <p className="eyebrow">Issue and contrast map</p>
-          <h2>{site.priorityIssues.join(", ")}</h2>
-          <p className="muted">
-            Contrast and accountability figures: {site.contrastFigures.join(", ")}
-          </p>
-        </article>
-      </section>
-
-      <section className="grid">
-        {site.landingPages.map((page) => (
-          <article key={page.slug} className="card">
-            <p className="eyebrow">{page.eyebrow}</p>
-            <h2>{page.headline}</h2>
-            <p className="muted">{page.supportingText}</p>
-            <div className="cardActions">
-              <a href={buildPreviewHref(site.tenantSlug, page.slug)}>{page.ctaLabel}</a>
-              <span className="mono">{buildTrackingSlug(site, page)}</span>
-            </div>
-          </article>
-        ))}
+      <section className="section">
+        <div className="sectionHeader">
+          <p className="eyebrow">Related routes</p>
+          <h2>Other conversion paths on this feeder site</h2>
+        </div>
+        <div className="grid threeUp">
+          {site.landingPages.map((page) => (
+            <article key={page.slug} className="card">
+              <p className="eyebrow">{page.eyebrow}</p>
+              <h3>{page.headline}</h3>
+              <p className="muted">{page.supportingText}</p>
+              <div className="cardActions">
+                <a href={buildPreviewHref(site.tenantSlug, page.slug)}>{page.ctaLabel}</a>
+                <span className="mono">{buildTrackingSlug(site, page)}</span>
+              </div>
+            </article>
+          ))}
+        </div>
       </section>
     </main>
   );

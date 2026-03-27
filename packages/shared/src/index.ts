@@ -1,6 +1,7 @@
 export * from "./constants/compliance";
 export * from "./constants/errors";
 export * from "./draft-generator";
+export * from "./feeder-content";
 export * from "./feeder-sites";
 export * from "./issue-content-board";
 export * from "./network-analytics";
